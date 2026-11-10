@@ -22,8 +22,8 @@ describe("parseOrder", () => {
 });
 
 describe("market rules", () => {
-  it("maintenance is half the initial margin; max leverage follows initial margin", () => {
-    expect(maintenanceRate(ETH)).toBe(0.025);
+  it("assumes maintenance = initial margin (conservative), max leverage follows initial margin", () => {
+    expect(maintenanceRate(ETH)).toBe(0.05);
     expect(maxLeverage(ETH)).toBe(20);
     expect(maxLeverage(ADA)).toBe(10);
   });
@@ -32,12 +32,12 @@ describe("market rules", () => {
 describe("plan", () => {
   it("sizes the position so the stop costs at most the max loss (Seatbelt picks the size)", () => {
     const p = plan(ETH, { side: "long", leverage: 5, maxLoss: 20 });
-    // liquidation 1/5 - 2.5% = 17.5% away; stop at 3% (default); notional = 20 / 3% ≈ 666
+    // liquidation 1/5 - 5% = 15% away (conservative); stop at 3% (default); notional = 20 / 3% ≈ 666
     expect(p.stopDistancePct).toBeLessThanOrEqual(3 + 1e-9);
     expect(p.lossAtStop).toBeLessThanOrEqual(20);
     expect(p.lossAtStop).toBeGreaterThan(19.9);
     expect(p.stopPrice).toBeLessThan(p.entry);
-    expect(p.liquidationPrice).toBeCloseTo(2000 * (1 - 0.175), 6);
+    expect(p.liquidationPrice).toBeCloseTo(2000 * (1 - 0.15), 6);
     expect(p.stopPrice).toBeGreaterThan(p.liquidationPrice);
     expect(p.margin).toBeCloseTo(p.notional / 5, 6);
   });
@@ -48,10 +48,10 @@ describe("plan", () => {
     expect(p.lossAtStop).toBeLessThanOrEqual(10);
   });
   it("at high leverage the stop moves closer so it still fires before liquidation", () => {
-    const p = plan(ETH, { side: "long", leverage: 20, maxLoss: 20 });
-    // 1/20 - 2.5% = 2.5% to liquidation; stop at 80% of that = 2%
-    expect(p.liquidationDistancePct).toBeCloseTo(2.5, 6);
-    expect(p.stopDistancePct).toBeLessThanOrEqual(2 + 1e-9);
+    const p = plan(ETH, { side: "long", leverage: 16, maxLoss: 20 });
+    // 1/16 - 5% = 1.25% to liquidation; stop at 80% of that = 1%
+    expect(p.liquidationDistancePct).toBeCloseTo(1.25, 6);
+    expect(p.stopDistancePct).toBeLessThanOrEqual(1 + 1e-9);
     expect(p.stopPrice).toBeGreaterThan(p.liquidationPrice);
   });
   it("with a fixed size, the stop sits where the loss equals the max loss", () => {
@@ -66,12 +66,15 @@ describe("plan", () => {
   });
   it("never promises more loss than asked, after rounding to the lot and tick grid", () => {
     for (const maxLoss of [5, 7.3, 13, 20, 99]) {
-      for (const lev of [1, 3, 7, 10]) {
+      for (const lev of [1, 3, 7, 9]) {
         const p = plan(ADA, { side: "long", leverage: lev, maxLoss });
         expect(p.lossAtStop).toBeLessThanOrEqual(maxLoss);
         expect(Number.isInteger(p.quantity)).toBe(true);
       }
     }
+  });
+  it("refuses the market's top leverage notch, where conservative maintenance leaves no room", () => {
+    expect(() => plan(ETH, { side: "long", leverage: 20, maxLoss: 20 })).toThrow(/no room before liquidation/);
   });
   it("refuses leverage above the market's maximum and sizes below the minimum", () => {
     expect(() => plan(ADA, { side: "long", leverage: 20, maxLoss: 10 })).toThrow(/at most 10x/);

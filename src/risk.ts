@@ -51,8 +51,14 @@ const floorTo = (x: number, step: number) => Math.floor(x / step + 1e-9) * step;
 const ceilTo = (x: number, step: number) => Math.ceil(x / step - 1e-9) * step;
 const round = (x: number, step: number) => Number(x.toFixed(Math.max(0, Math.ceil(-Math.log10(step)))));
 
+/**
+ * Conservative on purpose. The docs say maintenance is half the initial margin, but on 10 Nov 2026 the live
+ * initialMarginBps for ETH/BTC/SOL (250) and WLD (1000) disagreed with the docs' table while ADA (1000) matched
+ * (see feedback/002). Maintenance can never exceed initial margin, so assuming maintenance = initial keeps the
+ * stop before liquidation whichever source is right. The price: Seatbelt refuses the market's top leverage notch.
+ */
 export function maintenanceRate(m: MarketRules): number {
-  return m.initialMarginBps / 2 / 10_000;
+  return m.initialMarginBps / 10_000;
 }
 
 export function maxLeverage(m: MarketRules): number {
