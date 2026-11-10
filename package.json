@@ -1,0 +1,24 @@
+{
+  "name": "seatbelt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Seatbelt: perps with a seatbelt. Tell it the most you can lose; it places the dreamDEX perps order on Somnia testnet with a stop that keeps you inside it. Built for the dreamDEX Perps Builder Bounty.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "doctor": "tsx src/doctor.ts"
+  },
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.32.1",
+    "dotenv": "^18.0.10",
+    "viem": "^2.57.17"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
